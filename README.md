@@ -4,7 +4,7 @@
  - RSA Encryption gives best encryption for your messages. It creates the simple certificate for sharing the public key and other stuff.
  - Supports all type of files (including images).
  - Supports SNMP for delivering your messages or getting them.
- - Supports built-in antispam (you also can modify the algorithm!).
+ - Built-in antispam (you also can modify the algorithm!), mail-ban and ip-ban.
 
 # How it works:
 ...
