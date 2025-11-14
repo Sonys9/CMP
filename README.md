@@ -1,5 +1,5 @@
 # Cool Mail Protocol
-<img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/9b46b3f1-1647-466b-8795-f419dd801a9d" />
+<img width="1280" height="640" alt="Frame 2 (5)" src="https://github.com/user-attachments/assets/3b7014e6-a97f-4051-9bb4-5ba46cf0ac2a" />
 
 # Status: Developing
 What works right now? 
