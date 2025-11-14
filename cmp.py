@@ -19,6 +19,7 @@ class Server:
         self.addresses = {}
         self.maximum_address_length = maximum_address_length
         self.allowed_address_characters = allowed_address_characters
+        self.pool = {}
         
     async def start(self) -> None:
         """
@@ -79,10 +80,25 @@ class Server:
                     address, password, to_address, text, files = parsed['address'], parsed['password'], parsed['to_address'], parsed['text'], parsed['files']
                     result = await self.send_mail(address, password, to_address, text, files)
                     writer.write(OPCODES['SEND_MAIL'] + b't' if result else b'f')
-                except:
+                except Exception as e:
+                    print(e)
                     writer.write(OPCODES['SEND_MAIL'] + b'f')
                 continue
-                #if string.count('@') != 
+            
+            if opcode == OPCODES['GET_MAILS']:
+                string = message.decode()
+                try:
+                    parsed = json.loads(string)
+                    address, password = parsed['address'], parsed['password']
+                    result = await self.get_mails(address, password)
+                    writer.write(OPCODES['SEND_MAIL'] + result.encode() if result else b'f')
+                except:
+                    writer.write(OPCODES['GET_MAILS'] + b'f')
+                continue
+
+            if opcode == OPCODES['UPLOAD_FILE']:
+                ...
+                #ill do it tomorrow im tired
                 
     async def is_available(self, address: str) -> bool:
         """
@@ -142,7 +158,7 @@ class Server:
                 - password: Password (str, for example: verysecurepassword)
                 - to_address: Address to send (str, for example: friendemail)
                 - text: Text to send (str, for example: Hey!)
-                - files: Files to send (list[dict], for example: [{"file_name": "image.png", "file_content": image_content}, ...] or [] if no files)
+                - files: Files to send (list[dict], for example: [{"file_id": some_id}, ...] or [] if no files)
             Returns: bool
         """
         is_valid = await self.check_credentials(address.lower(), password)
@@ -158,7 +174,7 @@ class Server:
         for file in files:
             if not file:
                 continue
-            if 'file_name' not in file.keys() or 'file_content' not in file.keys() or len(file.keys()) > 2:
+            if 'file_id' not in file.keys() or len(file.keys()) > 1:
                 return False
 
         self.addresses[to_address.lower()]['mails'].append({
@@ -178,6 +194,20 @@ class Server:
             'sent_at': time.time()
         })
         return True
+
+    async def get_mails(self, address: str, password: str) -> list[dict] | bool:
+        """
+            Gets the mails
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+            Returns: list[dict] | bool (on error)
+        """
+        is_valid = await self.check_credentials(address.lower(), password)
+        if not is_valid:
+            return False
+        
+        return json.dumps(self.addresses[address.lower()]['mails'])
 
 class Client:
     def __init__(self, host: str, port: int) -> None:
@@ -295,10 +325,23 @@ class Client:
                 - password: Password (str, for example: verysecurepassword)
                 - to_address: Address to send (str, for example: friendemail)
                 - text: Text to send (str, for example: Hey!)
-                - files: Files to send (list[dict], for example: [{"file_name": "image.png", "file_content": image_content}, ...] or [] if no files)
+                - files: Files to send (list[dict], for example: [{"file_id": some_id}, ...] or [] if no files)
             Returns: bool
         """
         await self.send_raw_message(OPCODES['SEND_MAIL'] + json.dumps({'address': address, 'password': password, 'to_address': to_address, 'text': text, 'files': files}).encode(), timeout=timeout)
         result = await self.wait_for_raw_message(1024, timeout=timeout)
         opcode, message = result[:1], result[1:]
         return message == b't'
+
+    async def get_mails(self, address: str, password: str, timeout: float = 5) -> list[dict] | bool: # list or None because on older py versions list[dict] | None gives error
+        """
+            Gets the mails
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+            Returns: list[dict] | bool (on error)
+        """
+        await self.send_raw_message(OPCODES['GET_MAILS'] + json.dumps({'address': address, 'password': password}).encode(), timeout=timeout)
+        result = await self.wait_for_raw_message(1024, timeout=timeout)
+        opcode, message = result[:1], result[1:]
+        return json.loads(message.decode()) if message != b'f' else None

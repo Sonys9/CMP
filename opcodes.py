@@ -8,6 +8,8 @@ OPCODES = {
     'IS_AVAILABLE': bytes([0x06]),
     'REGISTER': bytes([0x07]),
     'SEND_MAIL': bytes([0x08]),
+    'GET_MAILS': bytes([0x09]),
+    'UPLOAD_FILE': bytes([0x10]),
 
     'UNKNOWN_OPCODE': bytes([0xFF])
 }

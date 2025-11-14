@@ -1,5 +1,6 @@
 import cmp
 import asyncio
+import base64
 from opcodes import OPCODES
 
 async def main():
@@ -8,27 +9,24 @@ async def main():
     await server.start()
     await client.connect()
 
-    available = await client.is_address_available('admin', 1)
+    available = await client.is_address_available('admin', 1) # True
     print(available)
 
-    result = await client.register_address('admin', 'admin', 1)
+    result = await client.register_address('admin', 'admin', 1) # True
     print(result)
 
-    result = await client.register_address('admin', 'admin', 1)
+    result = await client.register_address('admin', 'admin', 1) # False
     print(result)
 
-    result = await client.register_address('admin', 'admin2', 1)
+    with open('image.png', 'rb') as f:
+        image_content = f.read()
+
+    result = await client.send_mail('admin', 'admin', 'admin2', 'Hey!', files=[{'file_id': 'image.png'}]) # True
     print(result)
+    
 
-    result = await client.register_address('admin2', 'admin', 1)
-    print(result)
-
-    available = await client.is_address_available('admin', 1)
-    print(available)
-
-
-    result = await client.send_mail('admin', 'admin', 'admin2', 'Hey!')
-    print(result)
+    #mails = await client.get_mails('admin', 'admin') # 
+    #print(mails)
     
     #await client.send_raw_message(OPCODES['PING'])
     #result = await client.wait_for_raw_message(1024, 1)
