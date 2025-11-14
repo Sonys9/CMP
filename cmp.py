@@ -3,6 +3,7 @@ import errors
 import time
 import random
 import string
+import json
 from opcodes import OPCODES
 
 class Server:
@@ -62,15 +63,27 @@ class Server:
 
             if opcode == OPCODES['REGISTER']:
                 string = message.decode()
-                if string.count('@') != 1:
+                try:
+                    parsed = json.loads(string)
+                    address, password = parsed['address'], parsed['password']
+                    result = await self.register_address(address, password)
+                    writer.write(OPCODES['REGISTER'] + b't' if result else b'f')
+                except:
                     writer.write(OPCODES['REGISTER'] + b'f')
-                    continue
-
-                address, password = string.split('@')
-                result = await self.register_address(address, password)
-                writer.write(OPCODES['REGISTER'] + b't' if result else b'f')
                 continue
 
+            if opcode == OPCODES['SEND_MAIL']:
+                string = message.decode()
+                try:
+                    parsed = json.loads(string)
+                    address, password, to_address, text, files = parsed['address'], parsed['password'], parsed['to_address'], parsed['text'], parsed['files']
+                    result = await self.send_mail(address, password, to_address, text, files)
+                    writer.write(OPCODES['SEND_MAIL'] + b't' if result else b'f')
+                except:
+                    writer.write(OPCODES['SEND_MAIL'] + b'f')
+                continue
+                #if string.count('@') != 
+                
     async def is_available(self, address: str) -> bool:
         """
             Checks if address is available
@@ -87,7 +100,7 @@ class Server:
                 
         return True
 
-    async def register_address(self, address: str, password: str) -> bool | str:
+    async def register_address(self, address: str, password: str) -> bool:
         """
             Registers the address.
             Arguments:
@@ -99,12 +112,71 @@ class Server:
         if not available:
             return False
 
-        self.addresses[address] = {
+        self.addresses[address.lower()] = {
             'password': password,
             'mails': [],
             'register_date': time.time(),
             'admin': False
         }
+        return True
+
+    async def check_credentials(self, address: str, password: str) -> bool:
+        """
+            Checks the credentials
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+            Returns: bool
+        """
+        if not address in self.addresses.keys():
+            return False
+        if self.addresses[address]['password'] != password:
+            return False
+        return True
+
+    async def send_mail(self, address: str, password: str, to_address: str, text: str, files: list[dict]) -> bool:
+        """
+            Sends the mail
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+                - to_address: Address to send (str, for example: friendemail)
+                - text: Text to send (str, for example: Hey!)
+                - files: Files to send (list[dict], for example: [{"file_name": "image.png", "file_content": image_content}, ...] or [] if no files)
+            Returns: bool
+        """
+        is_valid = await self.check_credentials(address.lower(), password)
+        if not is_valid:
+            return False
+        
+        if to_address not in self.addresses.keys():
+            return False
+
+        if len(files) > 15:
+            return False
+
+        for file in files:
+            if not file:
+                continue
+            if 'file_name' not in file.keys() or 'file_content' not in file.keys() or len(file.keys()) > 2:
+                return False
+
+        self.addresses[to_address.lower()]['mails'].append({
+            'out': False,
+            'to_address': None,
+            'from_address': address,
+            'text': text,
+            'files': files,
+            'sent_at': time.time()
+        })
+        self.addresses[address.lower()]['mails'].append({
+            'out': True,
+            'to_address': to_address,
+            'from_address': None,
+            'text': text,
+            'files': files,
+            'sent_at': time.time()
+        })
         return True
 
 class Client:
@@ -210,7 +282,23 @@ class Client:
                 - password: Password (str, for example: verysecurepassword)
             Returns: bool
         """
-        await self.send_raw_message(OPCODES['REGISTER'] + address.encode() + '@'.encode() + password.encode(), timeout=timeout)
+        await self.send_raw_message(OPCODES['REGISTER'] + json.dumps({'address': address, 'password': password}).encode(), timeout=timeout)
+        result = await self.wait_for_raw_message(1024, timeout=timeout)
+        opcode, message = result[:1], result[1:]
+        return message == b't'
+
+    async def send_mail(self, address: str, password: str, to_address: str, text: str, files: list[dict] = [], timeout: float = 5) -> bool:
+        """
+            Sends the mail
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+                - to_address: Address to send (str, for example: friendemail)
+                - text: Text to send (str, for example: Hey!)
+                - files: Files to send (list[dict], for example: [{"file_name": "image.png", "file_content": image_content}, ...] or [] if no files)
+            Returns: bool
+        """
+        await self.send_raw_message(OPCODES['SEND_MAIL'] + json.dumps({'address': address, 'password': password, 'to_address': to_address, 'text': text, 'files': files}).encode(), timeout=timeout)
         result = await self.wait_for_raw_message(1024, timeout=timeout)
         opcode, message = result[:1], result[1:]
         return message == b't'

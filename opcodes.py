@@ -7,6 +7,7 @@ OPCODES = {
     'PING': bytes([0x05]),  # for tests
     'IS_AVAILABLE': bytes([0x06]),
     'REGISTER': bytes([0x07]),
+    'SEND_MAIL': bytes([0x08]),
 
     'UNKNOWN_OPCODE': bytes([0xFF])
 }
