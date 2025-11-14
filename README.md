@@ -1,4 +1,5 @@
 # Cool Mail Protocol
+# Status: Developing
 ☄️ CMP (Cool Mail Protocol) is an another mail protocol. It provides secured and fast connection.
  - It uses Asyncio for blazing fast perfomance.
  - [working on it] RSA Encryption gives best encryption for your messages. It creates the simple certificate for sharing the public key and other stuff.
