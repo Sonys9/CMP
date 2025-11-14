@@ -1,7 +1,7 @@
 # Cool Mail Protocol
 # Status: Developing
 What works right now? 
-Right now there is no database (ill add it later), works only address registering...
+Right now there is no database (ill add it later), works only address registering and message sending... (without images)
 
 ☄️ CMP (Cool Mail Protocol) is an another mail protocol. It provides secured and fast connection.
  - It uses Asyncio for blazing fast perfomance.
@@ -9,6 +9,7 @@ Right now there is no database (ill add it later), works only address registerin
  - [working on it] Supports all type of files (including images).
  - [working on it] Supports SNMP for delivering your messages or getting them.
  - [working on it] Built-in antispam (you also can modify the algorithm!), mail-ban and ip-ban.
+ - [working on it] You can delete your mails.
 
 # How it works:
 ...
