@@ -6,12 +6,12 @@ STRINGS = {
     'ADDRESS_AVAILABLE': 'The address is available.',
     'ADDRESS_NOT_FOUND': 'The address you provided was not found.',
 
-    'REGISTER_SUCCESSFUL': 'The address was successfuly registered.',
+    'REGISTER_SUCCESSFUL': 'The address was successfully registered.',
 
-    'INVALID_CREDENTIALS': 'The credentials you provided are wrong.',
+    'INVALID_CREDENTIALS': 'The credentials you provided are incorrect.',
     
-    'FILES_LIMIT': 'You reached the files limit.',
+    'FILES_LIMIT': 'You have reached the files limit.',
     'INVALID_FILE': 'You provided invalid file data.',
 
-    'MAIL_SENT': 'The mail was successfuly sent.',
+    'MAIL_SENT': 'The mail was successfully sent.',
 }
