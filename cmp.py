@@ -9,6 +9,12 @@ from strings import STRINGS
 
 class Server:
     def __init__(self, host: str = '127.0.0.1', port: int = 16760, maximum_address_length: int = 24, allowed_address_characters: str = 'qwertyuiopasdfghjklzxcvbnm123456789') -> None:
+        """
+            Sets server settings.
+            Arguments:
+                - host: The host to bind (str, default: 127.0.0.1)
+                - port: The port to bind (int, default: 16760)
+        """
         self.host = host
         self.port = port
         self.addresses = {}
@@ -17,126 +23,104 @@ class Server:
         self.pool = {}
         
     async def start(self) -> None:
+        """
+            Binds the server.
+        """
         self.server = await asyncio.start_server(
             self.handle_connection, self.host, self.port
         )
 
     async def handle_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        """
+            Handles connections.
+            Arguments:
+                - reader: asyncio.StreamReader
+                - writer: asyncio.StreamWriter
+        """
         client_address = writer.get_extra_info('peername')
 
-        try:
-            while True:
+        while True:
+            try:
                 data = await reader.read(1024)
                 if not data:
-                    break
-                try:
-                    parsed = json.loads(data.decode())
-                    opcode = parsed.get('opcode')
-                except Exception:
-                    writer.write(json.dumps({'opcode': OPCODES['PARSE_ERROR']}).encode())
-                    await writer.drain()
                     continue
+                parsed = json.loads(data.decode())
+                opcode = parsed['opcode']
 
                 if opcode not in OPCODES.values():
                     writer.write(json.dumps({'opcode': OPCODES['UNKNOWN_OPCODE']}).encode())
-                    await writer.drain()
                     continue
 
                 if opcode == OPCODES['CLIENT_DISCONNECT']:
                     writer.write(json.dumps({'opcode': OPCODES['CONNECTION_CLOSED']}).encode())
-                    await writer.drain()
                     writer.close()
                     await writer.wait_closed()
                     return
                 
                 if opcode == OPCODES['CLIENT_INITIALIZE'] or opcode == OPCODES['PING']:
                     writer.write(json.dumps({'opcode': OPCODES['CONNECTION_INITIALIZED']}).encode())
-                    await writer.drain()
                     continue
 
                 if opcode == OPCODES['IS_AVAILABLE']:
-                    address = parsed.get('address')
-                    if address is None:
-                        writer.write(json.dumps({'opcode': OPCODES['PARSE_ERROR']}).encode())
-                        await writer.drain()
-                        continue
-                    available = await self.is_available(address)
+                    available = await self.is_available(parsed['address'])
                     writer.write(json.dumps({'opcode': OPCODES['IS_AVAILABLE'], 'result': available}).encode())
-                    await writer.drain()
                     continue
 
                 if opcode == OPCODES['REGISTER']:
-                    address = parsed.get('address')
-                    password = parsed.get('password')
-                    if address is None or password is None:
-                        writer.write(json.dumps({'opcode': OPCODES['PARSE_ERROR']}).encode())
-                        await writer.drain()
-                        continue
-                    result = await self.register_address(address, password)
+                    result = await self.register_address(parsed['address'], parsed['password'])
                     writer.write(json.dumps({'opcode': OPCODES['REGISTER'], 'result': result}).encode())
-                    await writer.drain()
                     continue
 
                 if opcode == OPCODES['SEND_MAIL']:
-                    address = parsed.get('address')
-                    password = parsed.get('password')
-                    to_address = parsed.get('to_address')
-                    text = parsed.get('text')
-                    files = parsed.get('files', [])
-                    if None in (address, password, to_address, text) or not isinstance(files, list):
-                        writer.write(json.dumps({'opcode': OPCODES['PARSE_ERROR']}).encode())
-                        await writer.drain()
-                        continue
-                    result = await self.send_mail(address, password, to_address, text, files)
+                    result = await self.send_mail(parsed['address'], parsed['password'], parsed['to_address'], parsed['text'], parsed.get('files', []))
                     writer.write(json.dumps({'opcode': OPCODES['SEND_MAIL'], 'result': result}).encode())
-                    await writer.drain()
                     continue
                 
                 if opcode == OPCODES['GET_MAILS']:
-                    address = parsed.get('address')
-                    password = parsed.get('password')
-                    if address is None or password is None:
-                        writer.write(json.dumps({'opcode': OPCODES['PARSE_ERROR']}).encode())
-                        await writer.drain()
-                        continue
-                    result = await self.get_mails(address, password)
+                    result = await self.get_mails(parsed['address'], parsed['password'])
                     if result:
                         writer.write(json.dumps({'opcode': OPCODES['GET_MAILS'], 'result': True, 'data': result}).encode())
-                        await writer.drain()
                         continue
                     writer.write(json.dumps({'opcode': OPCODES['GET_MAILS'], 'result': False}).encode())
-                    await writer.drain()
                     continue
 
                 if opcode == OPCODES['UPLOAD_FILE']:
-                    writer.write(json.dumps({'opcode': OPCODES['UPLOAD_FILE'], 'result': False, 'message': STRINGS.get('NOT_IMPLEMENTED', 'Not implemented')}).encode())
-                    await writer.drain()
-                    continue
-        finally:
-            try:
-                writer.close()
-                await writer.wait_closed()
+                    ...
             except Exception:
-                pass
+                try:
+                    writer.write(json.dumps({'opcode': OPCODES['PARSE_ERROR']}).encode())
+                except:
+                    pass
+                continue
 
     async def is_available(self, address: str) -> bool:
-        if not isinstance(address, str):
-            return {'result': False, 'message': STRINGS['ADDRESS_IS_BAD']}
-        al = address.lower()
-        if al in self.addresses.keys():
+        """
+            Checks if address is available
+            Arguments:
+                - address: Address (str)
+            Returns: bool
+        """
+        if address.lower() in self.addresses.keys():
             return {'result': False, 'message': STRINGS['ADDRESS_NOT_AVAILABLE']}
-        if len(al) > self.maximum_address_length:
+        if len(address) > self.maximum_address_length:
             return {'result': False, 'message': STRINGS['ADDRESS_TOO_LONG']}
-        if len(al) < 3:
+        if len(address) < 3:
             return {'result': False, 'message': STRINGS['ADDRESS_TOO_SHORT']}
 
-        for k in al:
+        for k in address:
             if k not in self.allowed_address_characters:
                 return {'result': False, 'message': STRINGS['ADDRESS_IS_BAD']}
                 
         return {'result': True, 'message': STRINGS['ADDRESS_AVAILABLE']}
 
     async def register_address(self, address: str, password: str) -> bool:
+        """
+            Registers the address.
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+            Returns: bool
+        """
         available = await self.is_available(address)
         if not available['result']:
             return available
@@ -150,21 +134,35 @@ class Server:
         return {'result': True, 'message': STRINGS['REGISTER_SUCCESSFUL']}
 
     async def check_credentials(self, address: str, password: str) -> bool:
-        if not isinstance(address, str):
+        """
+            Checks the credentials
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+            Returns: bool
+        """
+        if not address in self.addresses.keys():
             return False
-        addr = address.lower()
-        if addr not in self.addresses.keys():
-            return False
-        if self.addresses[addr]['password'] != password:
+        if self.addresses[address]['password'] != password:
             return False
         return True
 
     async def send_mail(self, address: str, password: str, to_address: str, text: str, files: list[dict]) -> bool:
+        """
+            Sends the mail
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+                - to_address: Address to send (str, for example: friendemail)
+                - text: Text to send (str, for example: Hey!)
+                - files: Files to send (list[dict], for example: [{"file_id": some_id}, ...] or [] if no files)
+            Returns: bool
+        """
         is_valid = await self.check_credentials(address.lower(), password)
         if not is_valid:
             return {'result': False, 'message': STRINGS['INVALID_CREDENTIALS']}
         
-        if to_address.lower() not in self.addresses.keys():
+        if to_address not in self.addresses.keys():
             return {'result': False, 'message': STRINGS['ADDRESS_NOT_FOUND']}
 
         if len(files) > 15:
@@ -195,20 +193,38 @@ class Server:
         return {'result': True, 'message': STRINGS['MAIL_SENT']}
 
     async def get_mails(self, address: str, password: str) -> list[dict] | bool:
+        """
+            Gets the mails
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+            Returns: list[dict] | bool (on error)
+        """
         is_valid = await self.check_credentials(address.lower(), password)
         if not is_valid:
             return {'result': False, 'message': STRINGS['INVALID_CREDENTIALS']}
         
-        return self.addresses[address.lower()]['mails']
+        return json.dumps({'result': True, 'data': self.addresses[address.lower()]['mails']})
 
 class Client:
     def __init__(self, host: str, port: int) -> None:
+        """
+            Sets connection settings.
+            Arguments:
+                - host: The host to connect (str, for example: 127.0.0.1)
+                - port: The port to connect (int, for example: 16760)
+        """
         self.host = host
         self.port = port
         self.reader = None
         self.writer = None
     
     async def connect(self, timeout: float = 5) -> None:
+        """
+            Connects to the server.
+            Arguments:
+                - timeout: Timeout (float, default: 5)
+        """
         reader, writer = await asyncio.wait_for(asyncio.open_connection(
             self.host, self.port
         ), timeout=timeout)
@@ -219,7 +235,7 @@ class Client:
         try:
             parsed = json.loads(result.decode())
             opcode = parsed['opcode']
-        except Exception:
+        except:
             raise errors.InitializingError(f"Got bad response from the server: {result}")
         if opcode != OPCODES['CONNECTION_INITIALIZED']:
             raise errors.InitializingError(f"Client was not initialized, got {opcode} instead of {OPCODES['CONNECTION_INITIALIZED']}.")
@@ -228,6 +244,9 @@ class Client:
         self.writer = writer
 
     async def close(self) -> None:
+        """
+            Closes the connection.
+        """
         if not self.writer:
             return
             
@@ -236,6 +255,12 @@ class Client:
         await self.writer.wait_closed()
 
     async def send_raw_message(self, message: bytes, timeout: float = 5) -> None:
+        """
+            Sends the raw message without any response
+            Arguments:
+                - message: Message (bytes, for example: b'0x03')
+                - timeout: Timeout (float, default: 5)
+        """
         if not self.writer:
             raise errors.InitializingError('Client was not initialized.')
 
@@ -243,54 +268,98 @@ class Client:
         await asyncio.wait_for(self.writer.drain(), timeout=timeout)
 
     async def wait_for_raw_message(self, bytes_: int = 1024, timeout: float = 5) -> bytes:
+        """
+            Waits for the raw message.
+            Arguments:
+                - bytes_: Maximum number of bytes to get (int, default: 1024)
+                - timeout: Timeout in seconds (float, default: 5)
+
+            Returns: bytes (b'' if got nothing)
+        """
         if not self.reader:
             raise errors.InitializingError('Client was not initialized.')
-        try:
+    
+        start_time = time.time()
+        while True:
             result = await asyncio.wait_for(self.reader.read(bytes_), timeout=timeout)
-        except asyncio.TimeoutError:
-            return b''
+            if result:
+                break
+            if time.time() - start_time > timeout:
+                return b''
+            
         return result
 
     async def is_address_available(self, address: str, timeout: float = 5) -> bool:
+        """
+            Checks if address is available
+            Arguments:
+                - address: Address (str)
+                - timeout: Timeout (float)
+            Returns: bool
+        """
         await self.send_raw_message(json.dumps({'opcode': OPCODES['IS_AVAILABLE'], 'address': address}).encode(), timeout=timeout)
         result = await self.wait_for_raw_message(1024, timeout=timeout)
         try:
             parsed = json.loads(result.decode())
             available = parsed['result']
-        except Exception:
+        except:
             return False
         return available
 
     async def register_address(self, address: str, password: str, timeout: float = 5) -> bool:
+        """
+            Checks if address is available
+            Arguments:
+                - address: Address (str)
+                - timeout: Timeout (float)
+                - password: Password (str, for example: verysecurepassword)
+            Returns: bool
+        """
         await self.send_raw_message(json.dumps({'opcode': OPCODES['REGISTER'], 'address': address, 'password': password}).encode(), timeout=timeout)
         result = await self.wait_for_raw_message(1024, timeout=timeout)
         try:
             parsed = json.loads(result.decode())
             result = parsed['result']
-        except Exception:
+        except:
             return False
         return result
 
-    async def send_mail(self, address: str, password: str, to_address: str, text: str, files: list[dict] | None = None, timeout: float = 5) -> bool:
-        files = files or []
+    async def send_mail(self, address: str, password: str, to_address: str, text: str, files: list[dict] = [], timeout: float = 5) -> bool:
+        """
+            Sends the mail
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+                - to_address: Address to send (str, for example: friendemail)
+                - text: Text to send (str, for example: Hey!)
+                - files: Files to send (list[dict], for example: [{"file_id": some_id}, ...] or [] if no files)
+            Returns: bool
+        """
         await self.send_raw_message(json.dumps({'opcode': OPCODES['SEND_MAIL'], 'address': address, 'password': password, 'to_address': to_address, 'text': text, 'files': files}).encode(), timeout=timeout)
         result = await self.wait_for_raw_message(1024, timeout=timeout)
         try:
             parsed = json.loads(result.decode())
             result = parsed['result']
-        except Exception:
+        except:
             return False
         return result
 
     async def get_mails(self, address: str, password: str, timeout: float = 5) -> list[dict] | bool:
+        """
+            Gets the mails
+            Arguments:
+                - address: Address (str, for example: someemail)
+                - password: Password (str, for example: verysecurepassword)
+            Returns: list[dict] | bool (on error)
+        """
         await self.send_raw_message(json.dumps({'opcode': OPCODES['GET_MAILS'], 'address': address, 'password': password}).encode(), timeout=timeout)
         result = await self.wait_for_raw_message(1024, timeout=timeout)
         try:
             parsed = json.loads(result.decode())
             result = parsed['result']
             if not result:
-                raise Exception()
+                raise
             mails = parsed['data']
-        except Exception:
+        except:
             return False
         return mails
