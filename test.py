@@ -15,7 +15,7 @@ async def main():
     result = await client.register_address('admin', 'admin', 1) # True
     print(result)
 
-    result = await client.register_address('admin', 'admin', 1) # False
+    result = await client.register_address('admin2', 'admin2', 1) # True
     print(result)
 
     with open('image.png', 'rb') as f:

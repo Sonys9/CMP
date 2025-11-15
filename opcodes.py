@@ -1,15 +1,16 @@
 OPCODES = {
-    'CLIENT_INITIALIZE': bytes([0x00]),
-    'CONNECTION_INITIALIZED': bytes([0x01]),
-    'CONNECTION_CLOSED': bytes([0x02]),
-    'CONNECTION_ERROR': bytes([0x03]),
-    'CLIENT_DISCONNECT': bytes([0x04]),
-    'PING': bytes([0x05]),  # for tests
-    'IS_AVAILABLE': bytes([0x06]),
-    'REGISTER': bytes([0x07]),
-    'SEND_MAIL': bytes([0x08]),
-    'GET_MAILS': bytes([0x09]),
-    'UPLOAD_FILE': bytes([0x10]),
+    'CLIENT_INITIALIZE': 0,
+    'CONNECTION_INITIALIZED': 1,
+    'CONNECTION_CLOSED': 2,
+    'CONNECTION_ERROR': 3,
+    'CLIENT_DISCONNECT': 4,
+    'PING': 5,  # for tests
+    'IS_AVAILABLE': 6,
+    'REGISTER': 7,
+    'SEND_MAIL': 8,
+    'GET_MAILS': 9,
+    'UPLOAD_FILE': 10,
+    'PARSE_ERROR': 11,
 
-    'UNKNOWN_OPCODE': bytes([0xFF])
+    'UNKNOWN_OPCODE': -1
 }
